@@ -88,7 +88,7 @@
             border: 2px solid white;
         }
 
-        .morning { background-color: #ff35ff; }
+        .morning { background-color: #af9501; }
         .afternoon { background-color: #FF6B35; }
         .night { background-color: #2C3E50; }
         .rest { background-color: #27AE60; }
@@ -199,7 +199,7 @@
 <body>
     <div class="container">
         <header>
-            <h1>Mi Calendario de Turnos</h1>
+            <h1>Calendario de turnos</h1>
             <div class="controls">
                 <button id="prevMonth">&lt;</button>
                 <select id="monthSelect"></select>
@@ -228,7 +228,7 @@
             </div>
             <div class="legend-item">
                 <div class="color-box partial-rest"></div>
-                <span>Descanso Parcial</span>
+                <span>Noche/Descanso</span>
             </div>
         </div>
 
@@ -347,105 +347,72 @@
                 
                 if (daysDiff < 0) return null; // Antes del inicio del patrón
                 
-                // Determinar qué semana estamos (cada 7 días)
-                const weekNumber = Math.floor(daysDiff / 7);
+                // El patrón completo es de 8 días y se repite:
+                // 1 día noche → descanso parcial → descanso completo → 2 mañanas → 2 tardes → 1 noche
+                // Pero cada ciclo los descansos se corren 1 día hacia adelante cada semana
+                
+                const weeksElapsed = Math.floor(daysDiff / 7);
                 const dayInWeek = daysDiff % 7;
                 
-                // Patrón base de una semana (sin considerar los descansos que se corren)
-                // Lun-Mar: Noche, Miér: Parcial, Jue: Rest, Vie-Sáb: Mañana, Dom: Tarde
-                let basePattern = ['night', 'night', 'partial-rest', 'rest', 'morning', 'morning', 'afternoon'];
+                // Calculamos dónde van los descansos esta semana (se corren cada semana)
+                const basePartialRestDay = 1; // Originalmente martes (día 1)
+                const baseFullRestDay = 2;    // Originalmente miércoles (día 2)
                 
-                // Los días de descanso se corren cada semana
-                // Semana 0: descanso parcial martes (día 1), descanso miércoles (día 2)
-                // Semana 1: descanso parcial miércoles (día 2), descanso jueves (día 3)
-                // Semana 2: descanso parcial jueves (día 3), descanso viernes (día 4)
-                // etc.
+                const partialRestDay = (basePartialRestDay + weeksElapsed) % 7;
+                const fullRestDay = (baseFullRestDay + weeksElapsed) % 7;
                 
-                // Calculamos dónde van los descansos esta semana
-                const partialRestDay = (1 + weekNumber) % 7; // Se mueve cada semana
-                const fullRestDay = (2 + weekNumber) % 7;    // Se mueve cada semana
+                // Si el día actual es uno de los descansos
+                if (dayInWeek === partialRestDay) {
+                    return 'partial-rest';
+                }
+                if (dayInWeek === fullRestDay) {
+                    return 'rest';
+                }
                 
-                // Creamos el patrón para esta semana específica
-                let weekPattern = [];
+                // Para los días de trabajo, necesitamos determinar la secuencia
+                // El patrón después de cada descanso es: 2 mañanas → 2 tardes → 2 noches
+                // Pero necesitamos considerar que los descansos se mueven
                 
+                // Creamos un array de 7 días para esta semana
+                let weekSchedule = new Array(7);
+                
+                // Primero asignamos los descansos
+                weekSchedule[partialRestDay] = 'partial-rest';
+                weekSchedule[fullRestDay] = 'rest';
+                
+                // Ahora necesitamos llenar los 5 días restantes con: 2 mañanas, 2 tardes, 1 noche
+                // El patrón debe mantener la secuencia después del descanso completo
+                
+                let workDays = [];
                 for (let i = 0; i < 7; i++) {
-                    if (i === partialRestDay) {
-                        weekPattern[i] = 'partial-rest';
-                    } else if (i === fullRestDay) {
-                        weekPattern[i] = 'rest';
-                    } else {
-                        // Llenamos con el patrón de trabajo base
-                        // Necesitamos distribuir: 2 noches, 2 mañanas, 2 tardes en los 5 días restantes
-                        
-                        // Contamos cuántos días de cada tipo necesitamos aún
-                        let nightsNeeded = 2;
-                        let morningsNeeded = 2;
-                        let afternoonsNeeded = 1;
-                        
-                        // Asignamos según posición, evitando los días de descanso
-                        if (i < partialRestDay && i < fullRestDay) {
-                            // Antes de ambos descansos
-                            if (nightsNeeded > 0) {
-                                weekPattern[i] = 'night';
-                                nightsNeeded--;
-                            } else if (morningsNeeded > 0) {
-                                weekPattern[i] = 'morning';
-                                morningsNeeded--;
-                            } else {
-                                weekPattern[i] = 'afternoon';
-                                afternoonsNeeded--;
-                            }
-                        } else if (i > Math.max(partialRestDay, fullRestDay)) {
-                            // Después de ambos descansos
-                            if (morningsNeeded > 0) {
-                                weekPattern[i] = 'morning';
-                                morningsNeeded--;
-                            } else if (afternoonsNeeded > 0) {
-                                weekPattern[i] = 'afternoon';
-                                afternoonsNeeded--;
-                            } else {
-                                weekPattern[i] = 'night';
-                                nightsNeeded--;
-                            }
-                        } else {
-                            // Entre los descansos
-                            if (i > Math.min(partialRestDay, fullRestDay) && i < Math.max(partialRestDay, fullRestDay)) {
-                                if (nightsNeeded > 0) {
-                                    weekPattern[i] = 'night';
-                                    nightsNeeded--;
-                                } else if (morningsNeeded > 0) {
-                                    weekPattern[i] = 'morning';
-                                    morningsNeeded--;
-                                } else {
-                                    weekPattern[i] = 'afternoon';
-                                    afternoonsNeeded--;
-                                }
-                            }
-                        }
+                    if (weekSchedule[i] === undefined) {
+                        workDays.push(i);
                     }
                 }
                 
-                // Patrón más simple y directo basado en tu descripción exacta:
-                // Cada semana los descansos se corren 1 día
-                // Mantenemos el patrón: 2 noches, 2 mañanas, 2 tardes + descansos
+                // Ordenamos los días de trabajo y asignamos según la secuencia
+                // Después del descanso completo: 2 mañanas → 2 tardes → 1 noche
                 
-                // Patrón base que se repite cada semana, pero los descansos se mueven
-                const shiftCycle = ['night', 'night', 'morning', 'morning', 'afternoon', 'afternoon'];
-                let currentShiftIndex = 0;
+                // Encontramos el índice del día después del descanso completo
+                let dayAfterRest = (fullRestDay + 1) % 7;
                 
-                weekPattern = [];
+                // Reordenamos workDays empezando desde el día después del descanso
+                let orderedWorkDays = [];
                 for (let i = 0; i < 7; i++) {
-                    if (i === partialRestDay) {
-                        weekPattern[i] = 'partial-rest';
-                    } else if (i === fullRestDay) {
-                        weekPattern[i] = 'rest';
-                    } else {
-                        weekPattern[i] = shiftCycle[currentShiftIndex % shiftCycle.length];
-                        currentShiftIndex++;
+                    let checkDay = (dayAfterRest + i) % 7;
+                    if (workDays.includes(checkDay)) {
+                        orderedWorkDays.push(checkDay);
                     }
                 }
                 
-                return weekPattern[dayInWeek];
+                // Asignamos según el patrón: 2 mañanas → 2 tardes → 1 noche
+                const shiftPattern = ['morning', 'morning', 'afternoon', 'afternoon', 'night'];
+                
+                for (let i = 0; i < orderedWorkDays.length && i < shiftPattern.length; i++) {
+                    weekSchedule[orderedWorkDays[i]] = shiftPattern[i];
+                }
+                
+                return weekSchedule[dayInWeek] || null;
             }
             
             updateCalendar() {
