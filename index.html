@@ -88,7 +88,7 @@
             border: 2px solid white;
         }
 
-        .morning { background-color: #af9501; }
+        .morning { background-color: #c0a300; }
         .afternoon { background-color: #FF6B35; }
         .night { background-color: #2C3E50; }
         .rest { background-color: #27AE60; }
@@ -199,7 +199,7 @@
 <body>
     <div class="container">
         <header>
-            <h1>Calendario de turnos</h1>
+            <h1>Mi Calendario de Turnos</h1>
             <div class="controls">
                 <button id="prevMonth">&lt;</button>
                 <select id="monthSelect"></select>
@@ -223,12 +223,12 @@
                 <span>Noche (11pm-8am)</span>
             </div>
             <div class="legend-item">
-                <div class="color-box rest"></div>
-                <span>Descanso</span>
-            </div>
-            <div class="legend-item">
                 <div class="color-box partial-rest"></div>
                 <span>Noche/Descanso</span>
+            </div>
+            <div class="legend-item">
+                <div class="color-box rest"></div>
+                <span>Descanso</span>
             </div>
         </div>
 
@@ -274,8 +274,8 @@
                     'morning': { name: 'Mañana', time: '7:00 AM - 4:00 PM', class: 'morning' },
                     'afternoon': { name: 'Tarde', time: '3:00 PM - 11:00 PM', class: 'afternoon' },
                     'night': { name: 'Noche', time: '11:00 PM - 8:00 AM', class: 'night' },
-                    'rest': { name: 'Descanso', time: 'Día libre completo', class: 'rest' },
-                    'partial-rest': { name: 'Descanso Parcial', time: 'Libre después del turno', class: 'partial-rest' }
+                    'night-rest': { name: 'Noche/Descanso', time: '11:00 PM - 8:00 AM + Libre', class: 'partial-rest' },
+                    'rest': { name: 'Descanso', time: 'Día libre completo', class: 'rest' }
                 };
                 
                 this.initializeCalendar();
@@ -347,72 +347,40 @@
                 
                 if (daysDiff < 0) return null; // Antes del inicio del patrón
                 
-                // El patrón completo es de 8 días y se repite:
-                // 1 día noche → descanso parcial → descanso completo → 2 mañanas → 2 tardes → 1 noche
-                // Pero cada ciclo los descansos se corren 1 día hacia adelante cada semana
-                
-                const weeksElapsed = Math.floor(daysDiff / 7);
+                // Determinar qué semana estamos
+                const weekNumber = Math.floor(daysDiff / 7);
                 const dayInWeek = daysDiff % 7;
                 
-                // Calculamos dónde van los descansos esta semana (se corren cada semana)
-                const basePartialRestDay = 1; // Originalmente martes (día 1)
-                const baseFullRestDay = 2;    // Originalmente miércoles (día 2)
+                // El día de descanso se mueve cada semana
+                // Semana 0: descanso en miércoles (día 2)
+                // Semana 1: descanso en jueves (día 3)
+                // Semana 2: descanso en viernes (día 4)
+                // etc.
+                const restDay = (2 + weekNumber) % 7; // Empieza en día 2 y se mueve
                 
-                const partialRestDay = (basePartialRestDay + weeksElapsed) % 7;
-                const fullRestDay = (baseFullRestDay + weeksElapsed) % 7;
-                
-                // Si el día actual es uno de los descansos
-                if (dayInWeek === partialRestDay) {
-                    return 'partial-rest';
-                }
-                if (dayInWeek === fullRestDay) {
+                // Si es el día de descanso
+                if (dayInWeek === restDay) {
                     return 'rest';
                 }
                 
-                // Para los días de trabajo, necesitamos determinar la secuencia
-                // El patrón después de cada descanso es: 2 mañanas → 2 tardes → 2 noches
-                // Pero necesitamos considerar que los descansos se mueven
+                // Patrón base: 2 mañanas, 2 tardes, 1 noche, 1 noche/descanso
+                // Se distribuyen en los 6 días restantes de la semana
+                const workPattern = ['morning', 'morning', 'afternoon', 'afternoon', 'night', 'night-rest'];
                 
-                // Creamos un array de 7 días para esta semana
-                let weekSchedule = new Array(7);
+                // Creamos el horario para esta semana
+                let weekSchedule = [];
+                let workIndex = 0;
                 
-                // Primero asignamos los descansos
-                weekSchedule[partialRestDay] = 'partial-rest';
-                weekSchedule[fullRestDay] = 'rest';
-                
-                // Ahora necesitamos llenar los 5 días restantes con: 2 mañanas, 2 tardes, 1 noche
-                // El patrón debe mantener la secuencia después del descanso completo
-                
-                let workDays = [];
                 for (let i = 0; i < 7; i++) {
-                    if (weekSchedule[i] === undefined) {
-                        workDays.push(i);
+                    if (i === restDay) {
+                        weekSchedule[i] = 'rest';
+                    } else {
+                        weekSchedule[i] = workPattern[workIndex];
+                        workIndex++;
                     }
                 }
                 
-                // Ordenamos los días de trabajo y asignamos según la secuencia
-                // Después del descanso completo: 2 mañanas → 2 tardes → 1 noche
-                
-                // Encontramos el índice del día después del descanso completo
-                let dayAfterRest = (fullRestDay + 1) % 7;
-                
-                // Reordenamos workDays empezando desde el día después del descanso
-                let orderedWorkDays = [];
-                for (let i = 0; i < 7; i++) {
-                    let checkDay = (dayAfterRest + i) % 7;
-                    if (workDays.includes(checkDay)) {
-                        orderedWorkDays.push(checkDay);
-                    }
-                }
-                
-                // Asignamos según el patrón: 2 mañanas → 2 tardes → 1 noche
-                const shiftPattern = ['morning', 'morning', 'afternoon', 'afternoon', 'night'];
-                
-                for (let i = 0; i < orderedWorkDays.length && i < shiftPattern.length; i++) {
-                    weekSchedule[orderedWorkDays[i]] = shiftPattern[i];
-                }
-                
-                return weekSchedule[dayInWeek] || null;
+                return weekSchedule[dayInWeek];
             }
             
             updateCalendar() {
