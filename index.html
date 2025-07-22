@@ -88,7 +88,7 @@
             border: 2px solid white;
         }
 
-        .morning { background-color: #c0a300; }
+        .morning { background-color: #FFD700; }
         .afternoon { background-color: #FF6B35; }
         .night { background-color: #2C3E50; }
         .rest { background-color: #27AE60; }
@@ -224,7 +224,7 @@
             </div>
             <div class="legend-item">
                 <div class="color-box partial-rest"></div>
-                <span>Noche/Descanso</span>
+                <span>Descanso Parcial</span>
             </div>
             <div class="legend-item">
                 <div class="color-box rest"></div>
@@ -262,8 +262,8 @@
                 this.currentDate = new Date();
                 this.selectedDate = new Date();
                 
-                // Fecha de inicio del patrón (21/07/2025) - Lunes
-                this.startDate = new Date(2025, 6, 21);
+                // Fecha de descanso completo (22/07/2025 - Martes)
+                this.restStartDate = new Date(2025, 6, 22);
                 
                 this.months = [
                     'Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio',
@@ -274,7 +274,7 @@
                     'morning': { name: 'Mañana', time: '7:00 AM - 4:00 PM', class: 'morning' },
                     'afternoon': { name: 'Tarde', time: '3:00 PM - 11:00 PM', class: 'afternoon' },
                     'night': { name: 'Noche', time: '11:00 PM - 8:00 AM', class: 'night' },
-                    'night-rest': { name: 'Noche/Descanso', time: '11:00 PM - 8:00 AM + Libre', class: 'partial-rest' },
+                    'partial-rest': { name: 'Descanso Parcial', time: 'Libre después del turno', class: 'partial-rest' },
                     'rest': { name: 'Descanso', time: 'Día libre completo', class: 'rest' }
                 };
                 
@@ -343,44 +343,35 @@
             }
             
             calculateShift(date) {
-                const daysDiff = Math.floor((date - this.startDate) / (1000 * 60 * 60 * 24));
+                const daysDiff = Math.floor((date - this.restStartDate) / (1000 * 60 * 60 * 24));
                 
                 if (daysDiff < 0) return null; // Antes del inicio del patrón
                 
-                // Determinar qué semana estamos
-                const weekNumber = Math.floor(daysDiff / 7);
-                const dayInWeek = daysDiff % 7;
+                // Patrón de 8 días que se repite:
+                // Día 0: Descanso completo (22/07 - hoy)
+                // Día 1: Mañana 1 (23/07)
+                // Día 2: Mañana 2 (24/07)
+                // Día 3: Tarde 1 (25/07)
+                // Día 4: Tarde 2 (26/07)
+                // Día 5: Noche 1 (27/07)
+                // Día 6: Noche 2 (28/07)
+                // Día 7: Descanso parcial (29/07)
+                // Día 8: Vuelve a empezar con descanso completo (30/07)
                 
-                // El día de descanso se mueve cada semana
-                // Semana 0: descanso en miércoles (día 2)
-                // Semana 1: descanso en jueves (día 3)
-                // Semana 2: descanso en viernes (día 4)
-                // etc.
-                const restDay = (2 + weekNumber) % 7; // Empieza en día 2 y se mueve
+                const cyclePosition = daysDiff % 8;
                 
-                // Si es el día de descanso
-                if (dayInWeek === restDay) {
-                    return 'rest';
-                }
+                const pattern = [
+                    'rest',          // Día 0: Descanso completo
+                    'morning',       // Día 1: Mañana 1
+                    'morning',       // Día 2: Mañana 2
+                    'afternoon',     // Día 3: Tarde 1
+                    'afternoon',     // Día 4: Tarde 2
+                    'night',         // Día 5: Noche 1
+                    'night',         // Día 6: Noche 2
+                    'partial-rest'   // Día 7: Descanso parcial
+                ];
                 
-                // Patrón base: 2 mañanas, 2 tardes, 1 noche, 1 noche/descanso
-                // Se distribuyen en los 6 días restantes de la semana
-                const workPattern = ['morning', 'morning', 'afternoon', 'afternoon', 'night', 'night-rest'];
-                
-                // Creamos el horario para esta semana
-                let weekSchedule = [];
-                let workIndex = 0;
-                
-                for (let i = 0; i < 7; i++) {
-                    if (i === restDay) {
-                        weekSchedule[i] = 'rest';
-                    } else {
-                        weekSchedule[i] = workPattern[workIndex];
-                        workIndex++;
-                    }
-                }
-                
-                return weekSchedule[dayInWeek];
+                return pattern[cyclePosition];
             }
             
             updateCalendar() {
