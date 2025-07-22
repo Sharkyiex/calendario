@@ -262,8 +262,8 @@
                 this.currentDate = new Date();
                 this.selectedDate = new Date();
                 
-                // Fecha de inicio del patrón (21/07/2025)
-                this.startDate = new Date(2025, 6, 21); // Mes 6 = Julio
+                // Fecha de inicio del patrón (21/07/2025) - Lunes
+                this.startDate = new Date(2025, 6, 21);
                 
                 this.months = [
                     'Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio',
@@ -347,48 +347,105 @@
                 
                 if (daysDiff < 0) return null; // Antes del inicio del patrón
                 
-                // Patrón de 21 días (3 semanas)
-                const cyclePosition = daysDiff % 21;
+                // Determinar qué semana estamos (cada 7 días)
+                const weekNumber = Math.floor(daysDiff / 7);
+                const dayInWeek = daysDiff % 7;
                 
-                // Basado en tu patrón específico:
-                // Semana 1: 21-27 julio - noche(21,22) + parcial(22) + descanso(23) + mañana(24,25) + tarde(26,27)
-                // Semana 2: 28 julio-3 agosto - noche(28,29) + parcial(29) + descanso(30) + mañana(31,1) + tarde(2,3)
-                // Semana 3: 4-10 agosto - noche(4,5) + parcial(5) + descanso(6) + mañana(7,8) + tarde(9,10)
+                // Patrón base de una semana (sin considerar los descansos que se corren)
+                // Lun-Mar: Noche, Miér: Parcial, Jue: Rest, Vie-Sáb: Mañana, Dom: Tarde
+                let basePattern = ['night', 'night', 'partial-rest', 'rest', 'morning', 'morning', 'afternoon'];
                 
-                const patterns = [
-                    // Días 0-6 (primera semana del patrón)
-                    'night',        // día 0 (21 julio)
-                    'partial-rest', // día 1 (22 julio) - noche pero libre después
-                    'rest',         // día 2 (23 julio) 
-                    'morning',      // día 3 (24 julio)
-                    'morning',      // día 4 (25 julio)
-                    'afternoon',    // día 5 (26 julio)
-                    'afternoon',    // día 6 (27 julio)
-                    
-                    // Días 7-13 (segunda semana del patrón)
-                    'night',        // día 7 (28 julio)
-                    'partial-rest', // día 8 (29 julio) - noche pero libre después
-                    'rest',         // día 9 (30 julio)
-                    'morning',      // día 10 (31 julio)
-                    'morning',      // día 11 (1 agosto)
-                    'afternoon',    // día 12 (2 agosto)
-                    'afternoon',    // día 13 (3 agosto)
-                    
-                    // Días 14-20 (tercera semana del patrón)
-                    'night',        // día 14 (4 agosto)
-                    'partial-rest', // día 15 (5 agosto) - noche pero libre después
-                    'rest',         // día 16 (6 agosto)
-                    'morning',      // día 17 (7 agosto)
-                    'morning',      // día 18 (8 agosto)
-                    'afternoon',    // día 19 (9 agosto)
-                    'afternoon'     // día 20 (10 agosto)
-                ];
+                // Los días de descanso se corren cada semana
+                // Semana 0: descanso parcial martes (día 1), descanso miércoles (día 2)
+                // Semana 1: descanso parcial miércoles (día 2), descanso jueves (día 3)
+                // Semana 2: descanso parcial jueves (día 3), descanso viernes (día 4)
+                // etc.
                 
-                if (cyclePosition < patterns.length) {
-                    return patterns[cyclePosition];
+                // Calculamos dónde van los descansos esta semana
+                const partialRestDay = (1 + weekNumber) % 7; // Se mueve cada semana
+                const fullRestDay = (2 + weekNumber) % 7;    // Se mueve cada semana
+                
+                // Creamos el patrón para esta semana específica
+                let weekPattern = [];
+                
+                for (let i = 0; i < 7; i++) {
+                    if (i === partialRestDay) {
+                        weekPattern[i] = 'partial-rest';
+                    } else if (i === fullRestDay) {
+                        weekPattern[i] = 'rest';
+                    } else {
+                        // Llenamos con el patrón de trabajo base
+                        // Necesitamos distribuir: 2 noches, 2 mañanas, 2 tardes en los 5 días restantes
+                        
+                        // Contamos cuántos días de cada tipo necesitamos aún
+                        let nightsNeeded = 2;
+                        let morningsNeeded = 2;
+                        let afternoonsNeeded = 1;
+                        
+                        // Asignamos según posición, evitando los días de descanso
+                        if (i < partialRestDay && i < fullRestDay) {
+                            // Antes de ambos descansos
+                            if (nightsNeeded > 0) {
+                                weekPattern[i] = 'night';
+                                nightsNeeded--;
+                            } else if (morningsNeeded > 0) {
+                                weekPattern[i] = 'morning';
+                                morningsNeeded--;
+                            } else {
+                                weekPattern[i] = 'afternoon';
+                                afternoonsNeeded--;
+                            }
+                        } else if (i > Math.max(partialRestDay, fullRestDay)) {
+                            // Después de ambos descansos
+                            if (morningsNeeded > 0) {
+                                weekPattern[i] = 'morning';
+                                morningsNeeded--;
+                            } else if (afternoonsNeeded > 0) {
+                                weekPattern[i] = 'afternoon';
+                                afternoonsNeeded--;
+                            } else {
+                                weekPattern[i] = 'night';
+                                nightsNeeded--;
+                            }
+                        } else {
+                            // Entre los descansos
+                            if (i > Math.min(partialRestDay, fullRestDay) && i < Math.max(partialRestDay, fullRestDay)) {
+                                if (nightsNeeded > 0) {
+                                    weekPattern[i] = 'night';
+                                    nightsNeeded--;
+                                } else if (morningsNeeded > 0) {
+                                    weekPattern[i] = 'morning';
+                                    morningsNeeded--;
+                                } else {
+                                    weekPattern[i] = 'afternoon';
+                                    afternoonsNeeded--;
+                                }
+                            }
+                        }
+                    }
                 }
                 
-                return null;
+                // Patrón más simple y directo basado en tu descripción exacta:
+                // Cada semana los descansos se corren 1 día
+                // Mantenemos el patrón: 2 noches, 2 mañanas, 2 tardes + descansos
+                
+                // Patrón base que se repite cada semana, pero los descansos se mueven
+                const shiftCycle = ['night', 'night', 'morning', 'morning', 'afternoon', 'afternoon'];
+                let currentShiftIndex = 0;
+                
+                weekPattern = [];
+                for (let i = 0; i < 7; i++) {
+                    if (i === partialRestDay) {
+                        weekPattern[i] = 'partial-rest';
+                    } else if (i === fullRestDay) {
+                        weekPattern[i] = 'rest';
+                    } else {
+                        weekPattern[i] = shiftCycle[currentShiftIndex % shiftCycle.length];
+                        currentShiftIndex++;
+                    }
+                }
+                
+                return weekPattern[dayInWeek];
             }
             
             updateCalendar() {
