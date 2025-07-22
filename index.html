@@ -1,0 +1,481 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Calendario de Turnos</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            color: #333;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+
+        header {
+            text-align: center;
+            margin-bottom: 30px;
+        }
+
+        header h1 {
+            color: white;
+            font-size: 2.5em;
+            margin-bottom: 20px;
+            text-shadow: 2px 2px 4px rgba(0,0,0,0.3);
+        }
+
+        .controls {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            gap: 15px;
+            flex-wrap: wrap;
+        }
+
+        .controls button, .controls select {
+            padding: 10px 20px;
+            border: none;
+            border-radius: 25px;
+            background: white;
+            color: #333;
+            font-weight: bold;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+        }
+
+        .controls button:hover, .controls select:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 8px rgba(0,0,0,0.2);
+        }
+
+        .legend {
+            display: flex;
+            justify-content: center;
+            flex-wrap: wrap;
+            gap: 20px;
+            margin-bottom: 30px;
+            padding: 20px;
+            background: rgba(255,255,255,0.1);
+            border-radius: 15px;
+            backdrop-filter: blur(10px);
+        }
+
+        .legend-item {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            color: white;
+            font-weight: bold;
+        }
+
+        .color-box {
+            width: 20px;
+            height: 20px;
+            border-radius: 4px;
+            border: 2px solid white;
+        }
+
+        .morning { background-color: #FFD700; }
+        .afternoon { background-color: #FF6B35; }
+        .night { background-color: #2C3E50; }
+        .rest { background-color: #27AE60; }
+        .partial-rest { background-color: #95E1D3; }
+
+        .calendar-container {
+            background: white;
+            border-radius: 15px;
+            padding: 20px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.2);
+            margin-bottom: 20px;
+        }
+
+        .calendar {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 16px;
+        }
+
+        .calendar th {
+            padding: 15px;
+            background-color: #34495E;
+            color: white;
+            font-weight: bold;
+            text-align: center;
+        }
+
+        .calendar td {
+            padding: 0;
+            border: 1px solid #ddd;
+            height: 80px;
+            vertical-align: top;
+            position: relative;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+
+        .calendar td:hover {
+            background-color: rgba(52, 73, 94, 0.1);
+            transform: scale(1.05);
+        }
+
+        .day-number {
+            padding: 8px;
+            font-weight: bold;
+            display: block;
+        }
+
+        .shift-type {
+            position: absolute;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            padding: 5px;
+            text-align: center;
+            font-size: 11px;
+            font-weight: bold;
+            color: white;
+            text-shadow: 1px 1px 2px rgba(0,0,0,0.5);
+        }
+
+        .today {
+            border: 3px solid #E74C3C !important;
+            box-shadow: 0 0 15px rgba(231, 76, 60, 0.5);
+        }
+
+        .other-month {
+            color: #bbb;
+            background-color: #f9f9f9;
+        }
+
+        .shift-info {
+            background: rgba(255,255,255,0.95);
+            padding: 20px;
+            border-radius: 15px;
+            box-shadow: 0 6px 20px rgba(0,0,0,0.1);
+            backdrop-filter: blur(10px);
+        }
+
+        .shift-info h3 {
+            color: #2C3E50;
+            margin-bottom: 10px;
+        }
+
+        @media (max-width: 768px) {
+            .container {
+                padding: 10px;
+            }
+            
+            header h1 {
+                font-size: 2em;
+            }
+            
+            .legend {
+                gap: 10px;
+            }
+            
+            .calendar {
+                font-size: 14px;
+            }
+            
+            .calendar td {
+                height: 60px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>Mi Calendario de Turnos</h1>
+            <div class="controls">
+                <button id="prevMonth">&lt;</button>
+                <select id="monthSelect"></select>
+                <select id="yearSelect"></select>
+                <button id="nextMonth">&gt;</button>
+                <button id="today">Hoy</button>
+            </div>
+        </header>
+
+        <div class="legend">
+            <div class="legend-item">
+                <div class="color-box morning"></div>
+                <span>Mañana (7am-4pm)</span>
+            </div>
+            <div class="legend-item">
+                <div class="color-box afternoon"></div>
+                <span>Tarde (3pm-11pm)</span>
+            </div>
+            <div class="legend-item">
+                <div class="color-box night"></div>
+                <span>Noche (11pm-8am)</span>
+            </div>
+            <div class="legend-item">
+                <div class="color-box rest"></div>
+                <span>Descanso</span>
+            </div>
+            <div class="legend-item">
+                <div class="color-box partial-rest"></div>
+                <span>Descanso Parcial</span>
+            </div>
+        </div>
+
+        <div class="calendar-container">
+            <table class="calendar">
+                <thead>
+                    <tr>
+                        <th>Dom</th>
+                        <th>Lun</th>
+                        <th>Mar</th>
+                        <th>Mié</th>
+                        <th>Jue</th>
+                        <th>Vie</th>
+                        <th>Sáb</th>
+                    </tr>
+                </thead>
+                <tbody id="calendar-body">
+                </tbody>
+            </table>
+        </div>
+
+        <div class="shift-info" id="shift-info">
+            <h3>Información del Turno</h3>
+            <p id="shift-details">Selecciona un día para ver los detalles</p>
+        </div>
+    </div>
+
+    <script>
+        class ShiftCalendar {
+            constructor() {
+                this.currentDate = new Date();
+                this.selectedDate = new Date();
+                
+                // Fecha de inicio del patrón (21/07/2025)
+                this.startDate = new Date(2025, 6, 21); // Mes 6 = Julio
+                
+                this.months = [
+                    'Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio',
+                    'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre'
+                ];
+                
+                this.shiftTypes = {
+                    'morning': { name: 'Mañana', time: '7:00 AM - 4:00 PM', class: 'morning' },
+                    'afternoon': { name: 'Tarde', time: '3:00 PM - 11:00 PM', class: 'afternoon' },
+                    'night': { name: 'Noche', time: '11:00 PM - 8:00 AM', class: 'night' },
+                    'rest': { name: 'Descanso', time: 'Día libre completo', class: 'rest' },
+                    'partial-rest': { name: 'Descanso Parcial', time: 'Libre después del turno', class: 'partial-rest' }
+                };
+                
+                this.initializeCalendar();
+                this.setupEventListeners();
+            }
+            
+            initializeCalendar() {
+                this.populateSelectors();
+                this.updateCalendar();
+            }
+            
+            populateSelectors() {
+                const monthSelect = document.getElementById('monthSelect');
+                const yearSelect = document.getElementById('yearSelect');
+                
+                // Llenar selector de meses
+                this.months.forEach((month, index) => {
+                    const option = document.createElement('option');
+                    option.value = index;
+                    option.textContent = month;
+                    monthSelect.appendChild(option);
+                });
+                
+                // Llenar selector de años (2025-2030)
+                for (let year = 2025; year <= 2030; year++) {
+                    const option = document.createElement('option');
+                    option.value = year;
+                    option.textContent = year;
+                    yearSelect.appendChild(option);
+                }
+                
+                // Establecer valores actuales
+                monthSelect.value = this.currentDate.getMonth();
+                yearSelect.value = this.currentDate.getFullYear();
+            }
+            
+            setupEventListeners() {
+                document.getElementById('prevMonth').addEventListener('click', () => this.changeMonth(-1));
+                document.getElementById('nextMonth').addEventListener('click', () => this.changeMonth(1));
+                document.getElementById('today').addEventListener('click', () => this.goToToday());
+                
+                document.getElementById('monthSelect').addEventListener('change', (e) => {
+                    this.currentDate.setMonth(parseInt(e.target.value));
+                    this.updateCalendar();
+                });
+                
+                document.getElementById('yearSelect').addEventListener('change', (e) => {
+                    this.currentDate.setFullYear(parseInt(e.target.value));
+                    this.updateCalendar();
+                });
+            }
+            
+            changeMonth(delta) {
+                this.currentDate.setMonth(this.currentDate.getMonth() + delta);
+                document.getElementById('monthSelect').value = this.currentDate.getMonth();
+                document.getElementById('yearSelect').value = this.currentDate.getFullYear();
+                this.updateCalendar();
+            }
+            
+            goToToday() {
+                this.currentDate = new Date();
+                document.getElementById('monthSelect').value = this.currentDate.getMonth();
+                document.getElementById('yearSelect').value = this.currentDate.getFullYear();
+                this.updateCalendar();
+            }
+            
+            calculateShift(date) {
+                const daysDiff = Math.floor((date - this.startDate) / (1000 * 60 * 60 * 24));
+                
+                if (daysDiff < 0) return null; // Antes del inicio del patrón
+                
+                // Patrón de 21 días (3 semanas)
+                const cyclePosition = daysDiff % 21;
+                
+                // Basado en tu patrón específico:
+                // Semana 1: 21-27 julio - noche(21,22) + parcial(22) + descanso(23) + mañana(24,25) + tarde(26,27)
+                // Semana 2: 28 julio-3 agosto - noche(28,29) + parcial(29) + descanso(30) + mañana(31,1) + tarde(2,3)
+                // Semana 3: 4-10 agosto - noche(4,5) + parcial(5) + descanso(6) + mañana(7,8) + tarde(9,10)
+                
+                const patterns = [
+                    // Días 0-6 (primera semana del patrón)
+                    'night',        // día 0 (21 julio)
+                    'partial-rest', // día 1 (22 julio) - noche pero libre después
+                    'rest',         // día 2 (23 julio) 
+                    'morning',      // día 3 (24 julio)
+                    'morning',      // día 4 (25 julio)
+                    'afternoon',    // día 5 (26 julio)
+                    'afternoon',    // día 6 (27 julio)
+                    
+                    // Días 7-13 (segunda semana del patrón)
+                    'night',        // día 7 (28 julio)
+                    'partial-rest', // día 8 (29 julio) - noche pero libre después
+                    'rest',         // día 9 (30 julio)
+                    'morning',      // día 10 (31 julio)
+                    'morning',      // día 11 (1 agosto)
+                    'afternoon',    // día 12 (2 agosto)
+                    'afternoon',    // día 13 (3 agosto)
+                    
+                    // Días 14-20 (tercera semana del patrón)
+                    'night',        // día 14 (4 agosto)
+                    'partial-rest', // día 15 (5 agosto) - noche pero libre después
+                    'rest',         // día 16 (6 agosto)
+                    'morning',      // día 17 (7 agosto)
+                    'morning',      // día 18 (8 agosto)
+                    'afternoon',    // día 19 (9 agosto)
+                    'afternoon'     // día 20 (10 agosto)
+                ];
+                
+                if (cyclePosition < patterns.length) {
+                    return patterns[cyclePosition];
+                }
+                
+                return null;
+            }
+            
+            updateCalendar() {
+                const year = this.currentDate.getFullYear();
+                const month = this.currentDate.getMonth();
+                
+                const firstDay = new Date(year, month, 1);
+                const lastDay = new Date(year, month + 1, 0);
+                const startDate = new Date(firstDay);
+                startDate.setDate(startDate.getDate() - firstDay.getDay());
+                
+                const calendarBody = document.getElementById('calendar-body');
+                calendarBody.innerHTML = '';
+                
+                const today = new Date();
+                let currentDate = new Date(startDate);
+                
+                for (let week = 0; week < 6; week++) {
+                    const row = document.createElement('tr');
+                    
+                    for (let day = 0; day < 7; day++) {
+                        const cell = document.createElement('td');
+                        const dayNumber = document.createElement('span');
+                        dayNumber.className = 'day-number';
+                        dayNumber.textContent = currentDate.getDate();
+                        
+                        if (currentDate.getMonth() !== month) {
+                            cell.classList.add('other-month');
+                        }
+                        
+                        if (currentDate.toDateString() === today.toDateString()) {
+                            cell.classList.add('today');
+                        }
+                        
+                        const shiftType = this.calculateShift(currentDate);
+                        if (shiftType && currentDate.getMonth() === month) {
+                            const shiftInfo = this.shiftTypes[shiftType];
+                            cell.classList.add(shiftInfo.class);
+                            
+                            const shiftLabel = document.createElement('div');
+                            shiftLabel.className = 'shift-type';
+                            shiftLabel.textContent = shiftInfo.name;
+                            cell.appendChild(shiftLabel);
+                        }
+                        
+                        cell.appendChild(dayNumber);
+                        
+                        // Event listener para mostrar información del turno
+                        cell.addEventListener('click', () => this.showShiftInfo(new Date(currentDate), shiftType));
+                        
+                        row.appendChild(cell);
+                        currentDate.setDate(currentDate.getDate() + 1);
+                    }
+                    
+                    calendarBody.appendChild(row);
+                }
+            }
+            
+            showShiftInfo(date, shiftType) {
+                const shiftDetails = document.getElementById('shift-details');
+                const dateStr = date.toLocaleDateString('es-ES', {
+                    weekday: 'long',
+                    year: 'numeric',
+                    month: 'long',
+                    day: 'numeric'
+                });
+                
+                if (shiftType && this.shiftTypes[shiftType]) {
+                    const shift = this.shiftTypes[shiftType];
+                    shiftDetails.innerHTML = `
+                        <strong>${dateStr}</strong><br>
+                        <strong>Turno:</strong> ${shift.name}<br>
+                        <strong>Horario:</strong> ${shift.time}
+                    `;
+                } else {
+                    shiftDetails.innerHTML = `
+                        <strong>${dateStr}</strong><br>
+                        Sin turno asignado
+                    `;
+                }
+            }
+        }
+
+        // Inicializar el calendario cuando se carga la página
+        document.addEventListener('DOMContentLoaded', () => {
+            new ShiftCalendar();
+        });
+    </script>
+</body>
+</html>
